@@ -39,3 +39,6 @@ logs/
 # Temp
 *.tmp
 *.bak
+
+.claude
+.omc
