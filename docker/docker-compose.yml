@@ -1,0 +1,63 @@
+services:
+
+  # -----------------------------------------------
+  # MySQL 主库（处理写操作）
+  # -----------------------------------------------
+  mysql-master:
+    image: mysql:8.0
+    container_name: mysql-master
+    ports:
+      - "3306:3306"           # 宿主机3306 → 容器3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ecommerce
+    volumes:
+      - ./mysql/master/conf/my.cnf:/etc/mysql/conf.d/my.cnf   # 主库配置
+      - ./mysql/init:/docker-entrypoint-initdb.d               # 启动时自动执行的初始化脚本
+      - mysql_master_data:/var/lib/mysql                        # 数据持久化
+    networks:
+      - ecommerce-net
+
+  # -----------------------------------------------
+  # MySQL 从库（处理读操作）
+  # -----------------------------------------------
+  mysql-slave:
+    image: mysql:8.0
+    container_name: mysql-slave
+    ports:
+      - "3307:3306"           # 宿主机3307 → 容器3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ecommerce
+    volumes:
+      - ./mysql/slave/conf/my.cnf:/etc/mysql/conf.d/my.cnf     # 从库配置
+      - mysql_slave_data:/var/lib/mysql                          # 数据持久化
+    depends_on:
+      - mysql-master
+    networks:
+      - ecommerce-net
+
+  # -----------------------------------------------
+  # Redis（缓存）
+  # -----------------------------------------------
+  redis:
+    image: redis:7.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123  # 设置密码
+    volumes:
+      - redis_data:/data                           # 数据持久化
+    networks:
+      - ecommerce-net
+
+# 数据卷（让数据在容器重启后不丢失）
+volumes:
+  mysql_master_data:
+  mysql_slave_data:
+  redis_data:
+
+# 内部网络（容器之间互相通信用）
+networks:
+  ecommerce-net:
+    driver: bridge
