@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分布式电商系统 - 商品展示</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛒 分布式电商系统</h1>
+            <p class="subtitle">高并发商品查询演示</p>
+        </header>
+
+        <main>
+            <section class="product-section">
+                <h2>商品查询</h2>
+                <div class="search-box">
+                    <input type="number" id="productId" placeholder="输入商品ID (1-10)" value="1" min="1" max="10">
+                    <button onclick="searchProduct()">查询</button>
+                </div>
+
+                <div id="productResult" class="result-box">
+                    <p class="placeholder">点击查询按钮获取商品信息</p>
+                </div>
+            </section>
+
+            <section class="info-section">
+                <h2>系统信息</h2>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>负载均衡</h3>
+                        <p>Round Robin / Least Connections</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>缓存</h3>
+                        <p>Redis 缓存 + 雪崩防护</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>实例</h3>
+                        <p id="instanceInfo">-</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>分布式系统课程项目 - 高并发读能力演示</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

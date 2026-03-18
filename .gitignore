@@ -9,6 +9,8 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+# Spring Boot repackage originals (generated alongside fat JARs)
+*.original
 
 # IDE
 .idea/
@@ -42,3 +44,13 @@ logs/
 
 .claude
 .omc
+
+# JMeter
+jmeter/results/*.jtl
+jmeter/results/*.csv
+apache-jmeter*.tar.gz
+jmeter.log
+nohup.out
+
+# Local Maven repo cache (referenced in project)
+.m2/

@@ -1,0 +1,138 @@
+# Docker Compose for Step 4: Nginx Gateway + Load Balancing
+# Run with: docker compose -f docker-compose-step4.yml up -d
+
+services:
+  # -----------------------------------------------
+  # MySQL (required by product-service)
+  # -----------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ecommerce
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -----------------------------------------------
+  # Redis (required by product-service)
+  # -----------------------------------------------
+  redis:
+    image: redis:7.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -----------------------------------------------
+  # Product Service - Instance 1
+  # -----------------------------------------------
+  product-service-1:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service-1
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - APP_INSTANCE_ID=product-service-1
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce?useUnicode=true&characterEncoding=utf8
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - SERVER_PORT=8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/api/products/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -----------------------------------------------
+  # Product Service - Instance 2
+  # -----------------------------------------------
+  product-service-2:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service-2
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - APP_INSTANCE_ID=product-service-2
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce?useUnicode=true&characterEncoding=utf8
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=redis123
+      - SERVER_PORT=8082
+    ports:
+      - "8083:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/api/products/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -----------------------------------------------
+  # Nginx Gateway
+  # -----------------------------------------------
+  nginx:
+    image: nginx:1.24
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - product-service-1
+      - product-service-2
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# Networks
+networks:
+  ecommerce-net:
+    driver: bridge
+
+# Volumes
+volumes:
+  mysql_data:
+  redis_data:

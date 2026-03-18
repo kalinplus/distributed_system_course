@@ -3,6 +3,11 @@
 CREATE DATABASE IF NOT EXISTS ecommerce DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE ecommerce;
 
+-- 创建应用用户
+CREATE USER IF NOT EXISTS 'ecommerce'@'%' IDENTIFIED BY 'ecommerce123';
+GRANT ALL PRIVILEGES ON ecommerce.* TO 'ecommerce'@'%';
+FLUSH PRIVILEGES;
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS t_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
