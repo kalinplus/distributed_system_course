@@ -66,6 +66,34 @@ services:
       retries: 3
 
   # -----------------------------------------------
+  # MySQL Slave (Read Replica)
+  # -----------------------------------------------
+  mysql-slave:
+    image: mysql:8.0
+    container_name: mysql-slave
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ecommerce
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql_slave_data:/var/lib/mysql
+    command: >
+      --server-id=2
+      --read-only=ON
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --skip-name-resolve
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -----------------------------------------------
   # Product Service - Instance 1
   # -----------------------------------------------
   product-service-1:
@@ -161,6 +189,8 @@ services:
     container_name: inventory-service
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - JWT_SECRET=mySecretKey12345678901234567890123456789012345678901234567890
+      - JWT_EXPIRATION=86400000
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce?useUnicode&characterEncoding=utf8
     ports:
       - "8084:8084"
@@ -185,6 +215,8 @@ services:
     container_name: order-service
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - JWT_SECRET=mySecretKey12345678901234567890123456789012345678901234567890
+      - JWT_EXPIRATION=86400000
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce?useUnicode&characterEncoding=utf8
     ports:
       - "8085:8085"
@@ -199,6 +231,29 @@ services:
       timeout: 5s
       retries: 3
 
+  # -----------------------------------------------
+  # ElasticSearch
+  # -----------------------------------------------
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
 # Networks
 networks:
   ecommerce-net:
@@ -208,3 +263,5 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  mysql_slave_data:
+  es_data:

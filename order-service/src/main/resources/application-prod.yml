@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8082}
+  port: ${SERVER_PORT:8085}
 
 # JWT configuration (required by common-core)
 jwt:
@@ -13,25 +13,9 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:ecommerce123}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
-
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:redis123}
-      timeout: 3000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 2
-          max-wait: 3000ms
-  elasticsearch:
-    host: ${SPRING_ELASTICSEARCH_HOST:elasticsearch}
-    port: ${SPRING_ELASTICSEARCH_PORT:9200}
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
