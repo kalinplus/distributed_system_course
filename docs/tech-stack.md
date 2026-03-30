@@ -15,6 +15,7 @@
 | Spring Boot | 3.2.x | 快速构建 RESTful API |
 | Spring Web | 内置 | Web 开发 |
 | Spring Data Redis | 内置 | Redis 集成 |
+| Spring AOP | 内置 | 读写分离路由切面 |
 
 ### 1.3 持久层框架
 
@@ -41,11 +42,22 @@
 
 | 组件 | 版本 | 说明 |
 |------|------|------|
-| Redis | 7.2 | 商品缓存、会话存储 |
+| Redis | 7.2 | 商品缓存（三重防护：穿透/击穿/雪崩） |
 
 **配置：**
 - 端口：6379
 - 持久化：AOF + RDB
+
+### 2.3 搜索引擎
+
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| ElasticSearch | 8.11.0 | 商品全文搜索 |
+
+**配置：**
+- 端口：9200
+- 单节点模式，安全认证关闭
+- 启动时从 MySQL 全量同步
 
 ---
 
@@ -77,12 +89,16 @@
 
 | 容器名 | 镜像 | 说明 |
 |--------|------|------|
-| mysql-master | mysql:8.0 | 主库 |
-| mysql-slave | mysql:8.0 | 从库 |
+| mysql | mysql:8.0 | 主库 |
+| mysql-slave | mysql:8.0 | 从库（只读） |
 | redis | redis:7.2 | 缓存 |
-| nginx | nginx:1.24 | 反向代理 |
-| app1 | 本地构建 | 后端实例1 |
-| app2 | 本地构建 | 后端实例2 |
+| elasticsearch | elasticsearch:8.11.0 | 搜索引擎 |
+| nginx | nginx:1.24 | 反向代理 + 负载均衡 |
+| user-service | eclipse-temurin:17-jre-alpine | 用户服务 |
+| product-service-1 | eclipse-temurin:17-jre-alpine | 商品服务实例1 |
+| product-service-2 | eclipse-temurin:17-jre-alpine | 商品服务实例2 |
+| inventory-service | eclipse-temurin:17-jre-alpine | 库存服务 |
+| order-service | eclipse-temurin:17-jre-alpine | 订单服务 |
 
 ---
 
@@ -233,30 +249,49 @@
 ## 8. 项目结构
 
 ```
-ecommerce-system/
-├── src/main/java/com/course/ecommerce/
-│   ├── EcommerceApplication.java
-│   ├── config/              # 配置类
-│   │   ├── RedisConfig.java
-│   │   ├── DataSourceConfig.java
-│   │   └── SwaggerConfig.java
-│   ├── controller/         # 控制器
-│   │   ├── UserController.java
-│   │   ├── ProductController.java
-│   │   ├── OrderController.java
-│   │   └── InventoryController.java
-│   ├── service/            # 业务逻辑
-│   ├── mapper/             # 数据访问
-│   ├── entity/             # 实体类
-│   ├── dto/                # 数据传输对象
-│   ├── common/             # 公共组件
-│   │   ├── Result.java
-│   │   └── exception/
-│   └── interceptor/        # 拦截器
-├── src/main/resources/
-│   ├── application.yml
-│   └── mapper/             # MyBatis XML
-└── pom.xml
+distributed_system_course/
+├── common-core/               # 共享模块（无业务逻辑）
+│   └── src/main/java/com/course/ecommerce/
+│       ├── common/            # Result, BusinessException, GlobalExceptionHandler
+│       ├── config/            # JwtUtil
+│       ├── entity/            # User, Product, Order, Inventory
+│       └── dto/               # RegisterRequest, LoginRequest, LoginResponse
+├── user-service/              # 用户注册/登录
+│   └── src/main/java/com/course/ecommerce/
+│       ├── controller/        # UserController
+│       ├── service/impl/      # UserServiceImpl (BCrypt + JWT)
+│       ├── mapper/            # UserMapper
+│       └── config/            # SecurityConfig
+├── product-service/           # 商品服务（核心：缓存 + 搜索 + 读写分离）
+│   └── src/main/java/com/course/ecommerce/
+│       ├── controller/        # ProductController (含 /search 端点)
+│       ├── service/
+│       │   ├── ProductCacheService.java       # Redis 三重防护
+│       │   └── impl/ProductServiceImpl.java   # 缓存击穿/穿透/雪崩逻辑
+│       ├── mapper/            # ProductMapper (@ReadOnly)
+│       ├── config/
+│       │   ├── MyBatisConfig.java             # 双数据源路由
+│       │   ├── DataSourceRouter.java          # AbstractRoutingDataSource
+│       │   ├── ReadOnly.java                  # 自定义注解
+│       │   ├── ReadOnlyRoutingAspect.java     # AOP 读写路由
+│       │   ├── ElasticsearchConfig.java       # ES 客户端
+│       │   └── InstanceIdInterceptor.java     # X-Instance-Id
+│       └── elasticsearch/
+│           ├── ProductDocument.java           # ES 文档模型
+│           └── ProductSearchService.java      # 同步 + 搜索
+├── inventory-service/          # 库存查询（最小实现）
+├── order-service/              # 订单管理（最小实现）
+├── sql/init.sql               # 建表 + 5 条 Apple 商品测试数据
+├── nginx/
+│   ├── nginx.conf             # Upstream + location /api/ + static
+│   └── html/                  # index.html, style.css, app.js
+├── jmeter/
+│   ├── product-detail-test.jmx
+│   ├── static-file-test.jmx
+│   └── results/
+├── docker-compose.yml         # 完整 10 容器编排
+├── pom.xml                    # 父 POM（多模块聚合）
+└── docs/                      # 架构、API、数据库文档
 ```
 
 ---
@@ -268,8 +303,9 @@ ecommerce-system/
 | 语言 | Java 17 | 主流、成熟 |
 | 框架 | Spring Boot 3.2 | 快速开发、生态完善 |
 | ORM | MyBatis-Plus | 简化开发、SQL可控 |
-| 数据库 | MySQL 8.0 | 关系型存储 |
-| 缓存 | Redis 7.2 | 高性能缓存 |
+| 数据库 | MySQL 8.0 | 关系型存储，主从读写分离 |
+| 缓存 | Redis 7.2 | 高性能缓存，三重防护 |
+| 搜索 | ElasticSearch 8.11.0 | 全文检索 |
 | 网关 | Nginx | 反向代理、负载均衡 |
 | 认证 | JWT | 无状态、易扩展 |
 | 部署 | Docker | 环境一致、快速部署 |

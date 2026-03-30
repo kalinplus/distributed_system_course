@@ -309,20 +309,51 @@ INSERT INTO t_inventory (product_id, stock) VALUES
 
 ### 5.1 主从架构
 
-- **主库（Master）**：负责所有写操作
+- **主库（Master）**：`mysql:3306`，负责所有写操作
   - 用户注册
   - 订单创建
   - 库存扣减/恢复
   - 商品管理
 
-- **从库（Slave）**：负责读操作
-  - 商品列表查询
+- **从库（Slave）**：`mysql-slave:3307`，负责读操作
   - 商品详情查询
-  - 订单列表查询
-  - 订单详情查询
+  - 库存查询
+  - 订单查询
 
-### 5.2 数据源路由
+### 5.2 数据源路由实现
 
-应用层通过配置多数据源，实现读写分离：
-- 写操作路由到主库
-- 读操作路由到从库（如从库故障则退化到主库）
+应用层通过 Spring `AbstractRoutingDataSource` + AOP 实现读写分离：
+
+**核心组件（位于 product-service）：**
+
+| 文件 | 作用 |
+|------|------|
+| `MyBatisConfig.java` | 配置双 HikariCP 数据源 + `DataSourceRouter` + `MybatisSqlSessionFactoryBean` |
+| `DataSourceRouter.java` | 继承 `AbstractRoutingDataSource`，根据 ThreadLocal 路由 |
+| `DataSourceContextHolder.java` | ThreadLocal 上下文持有器，存储 `master` / `slave` 标记 |
+| `DataSourceNames.java` | 常量定义 `MASTER = "master"`, `SLAVE = "slave"` |
+| `ReadOnly.java` | 自定义注解，标记读方法 |
+| `ReadOnlyRoutingAspect.java` | AOP 切面，拦截 `@ReadOnly` 方法，设置 ThreadLocal 为 `slave` |
+
+**路由逻辑：**
+- 方法标注 `@ReadOnly` → AOP 切面设置 `ThreadLocal = "slave"` → `DataSourceRouter` 路由到 HikariPool-2 (mysql-slave:3306)
+- 方法未标注 `@ReadOnly` → 默认 `ThreadLocal = "master"` → `DataSourceRouter` 路由到 HikariPool-1 (mysql:3306)
+
+**示例：**
+```java
+// ProductMapper.java
+@ReadOnly
+Product selectById(Long id);   // → 路由到 Slave
+```
+
+**Docker Compose 配置：**
+```yaml
+mysql-slave:
+  image: mysql:8.0
+  ports:
+    - "3307:3306"
+  environment:
+    MYSQL_DATABASE: ecommerce
+    MYSQL_ROOT_PASSWORD: root123
+  command: --server-id=2 --read_only=ON --super_read_only=ON
+```

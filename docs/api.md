@@ -266,7 +266,43 @@
 }
 ```
 
-### 2.5 删除商品（后台）
+### 2.5 商品搜索（ElasticSearch）
+
+**GET** `/api/products/search`
+
+**请求参数：**
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| q | string | 是 | 搜索关键词（全文匹配商品名称） |
+
+**响应示例：**
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "iPhone 15 Pro",
+      "description": "Apple iPhone 15 Pro 256GB",
+      "price": 8999.00,
+      "stock": 100,
+      "category": "手机",
+      "imageUrl": "https://example.com/iphone15.jpg",
+      "status": 1
+    }
+  ]
+}
+```
+
+**说明：**
+- 基于 ElasticSearch `MatchQuery` 对商品名称进行全文检索。
+- 服务启动时 `@PostConstruct` 自动从 MySQL 全量同步商品数据到 ES。
+- 端口：通过 nginx 网关访问 `http://localhost/api/products/search?q=iPhone`。
+
+### 2.6 删除商品（后台）
 
 **DELETE** `/api/product/{id}`
 
