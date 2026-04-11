@@ -1,6 +1,7 @@
 package com.course.ecommerce.consumer;
 
 import com.course.ecommerce.event.OrderCreateEvent;
+import com.course.ecommerce.service.CompensationService;
 import com.course.ecommerce.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class SeckillOrderConsumer {
 
     private final OrderService orderService;
+    private final CompensationService compensationService;
 
     /**
      * 监听秒杀订单topic
@@ -51,7 +53,7 @@ public class SeckillOrderConsumer {
 
     /**
      * 处理补偿逻辑
-     * TODO: Part G 实现补偿服务后替换为正式补偿逻辑
+     * 调用补偿服务回滚库存
      *
      * @param event 订单创建事件
      * @param e 异常
@@ -59,7 +61,7 @@ public class SeckillOrderConsumer {
     private void handleCompensation(OrderCreateEvent event, Exception e) {
         log.warn("Compensation needed for orderNo: {}, idempotencyKey: {}. Error: {}",
                 event.getOrderNo(), event.getIdempotencyKey(), e.getMessage());
-        // Part G: 调用补偿服务，回滚库存等操作
-        // compensationService.compensate(event);
+        // 调用补偿服务，回滚库存
+        compensationService.compensateOrderCreation(event);
     }
 }
