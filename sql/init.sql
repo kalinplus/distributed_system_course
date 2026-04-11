@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS t_order (
     order_no VARCHAR(50) NOT NULL UNIQUE COMMENT '订单号',
     user_id BIGINT NOT NULL COMMENT '用户ID',
     product_id BIGINT NOT NULL COMMENT '商品ID',
+    seckill_activity_id BIGINT COMMENT '秒杀活动ID',
     quantity INT NOT NULL DEFAULT 1 COMMENT '数量',
     total_amount DECIMAL(10, 2) NOT NULL COMMENT '总金额',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '订单状态：PENDING/PAID/SHIPPED/COMPLETED/CANCELLED',
@@ -61,7 +62,8 @@ CREATE TABLE IF NOT EXISTS t_order (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_user_id (user_id),
     INDEX idx_order_no (order_no),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    UNIQUE INDEX uk_user_product_activity (user_id, product_id, seckill_activity_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单表';
 
 -- 插入测试数据

@@ -24,6 +24,8 @@ public class Order {
 
     private Long productId;
 
+    private Long seckillActivityId;
+
     private Integer quantity;
 
     private BigDecimal totalAmount;
