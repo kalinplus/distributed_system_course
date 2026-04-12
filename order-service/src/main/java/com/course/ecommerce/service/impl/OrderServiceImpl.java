@@ -52,8 +52,8 @@ public class OrderServiceImpl implements OrderService {
         order.setQuantity(event.getQuantity());
         order.setTotalAmount(event.getTotalAmount());
 
-        // 3. 设置状态为"CREATED"
-        order.setStatus("CREATED");
+        // 3. 设置状态为"PENDING"
+        order.setStatus("PENDING");
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
