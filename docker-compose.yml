@@ -201,6 +201,7 @@ services:
       - JWT_SECRET=mySecretKey12345678901234567890123456789012345678901234567890
       - JWT_EXPIRATION=86400000
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce?useUnicode&characterEncoding=utf8
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     ports:
       - "8084:8084"
     depends_on:
@@ -229,6 +230,8 @@ services:
       - JWT_SECRET=mySecretKey12345678901234567890123456789012345678901234567890
       - JWT_EXPIRATION=86400000
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce?useUnicode&characterEncoding=utf8
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - INVENTORY_SERVICE_URL=http://inventory-service:8084
     ports:
       - "8085:8085"
     depends_on:
