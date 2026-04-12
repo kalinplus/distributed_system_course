@@ -9,7 +9,7 @@ import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -60,7 +60,7 @@ public class SeckillStockServiceImpl implements SeckillStockService {
         try {
             Long result = stringRedisTemplate.execute(
                     stockDeductScript,
-                    Collections.singletonList(stockKey),
+                    Arrays.asList(stockKey, dupKey),
                     String.valueOf(quantity),
                     String.valueOf(DEFAULT_EXPIRE_SECONDS)
             );

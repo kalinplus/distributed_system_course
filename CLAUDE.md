@@ -112,6 +112,7 @@ mvn clean package -DskipTests
 mvn package -DskipTests -pl user-service,inventory-service,order-service -am
 
 # Start full environment (all containers)
+# Note: All Docker images are cached locally, no network required
 docker compose up -d --build
 
 # Start Step 4 subset (nginx + product × 2 only)
@@ -177,3 +178,52 @@ docker compose down -v
 | Bonus | Cache triple protection + MySQL R/W separation + ES search | Complete |
 
 See `docs/superpowers/` for step-by-step progress reports and debugging notes.
+
+## ⚠️ Critical Constraints
+
+### System Configuration Changes Require Approval
+
+**The following actions REQUIRE explicit user approval before execution:**
+
+1. **DNS Configuration Changes**
+   - Files: `/etc/resolv.conf`, `~/.orbstack/config/docker.json` (dns field)
+   - Commands: `networksetup -setdnsservers`, any DNS modification
+   - Reason: Incorrect DNS changes can cause complete network failure (see incident 2026-04-12)
+
+2. **System Network Configuration**
+   - Files: `/etc/hosts`, SSH configs, firewall rules
+   - Any system-level network proxy settings
+
+3. **Shell Environment Files**
+   - Files: `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, `~/.profile`
+   - Reason: Can break user environment and workflows
+
+**Before modifying these files, you MUST:**
+- Explain what you need to change and why
+- Show the exact changes (diff format)
+- Explain the potential impact
+- Wait for explicit user approval
+
+### Incident Reference
+**2026-04-12**: Auto-modified `~/.orbstack/config/docker.json` with `"dns": ["223.5.5.5", "119.29.29.29"]`, causing system-wide DNS resolution failure. Lesson: Never auto-modify system DNS configs.
+
+## Docker Environment Notes
+
+### Local Image Cache
+
+All required Docker images are pre-cached locally. The development environment can be started **without internet connection**:
+
+- `eclipse-temurin:17-jre` / `eclipse-temurin:17-jre-alpine` - Java runtime
+- `nginx:alpine` - Gateway and static files
+- `redis:7.4` - Cache layer
+- `mysql:8.4` - Database
+- `confluentinc/cp-kafka:7.5.0` - Message queue
+- `confluentinc/cp-zookeeper:7.5.0` - Kafka dependency
+- `alpine/jmeter:latest` - Load testing
+
+If you need to pull fresh images (e.g., after purging local cache):
+```bash
+# Ensure proxy is enabled for Docker daemon
+proxy
+docker compose pull
+```

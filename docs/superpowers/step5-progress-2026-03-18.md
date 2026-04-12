@@ -242,3 +242,87 @@ order-service       healthy (healthy)
 ```
 
 Step 5 is complete and verified.
+
+---
+
+## 2026-04-11 补充：OrbStack 下 JMeter 镜像拉取失败排查
+
+### 现象
+
+在 OrbStack 环境中执行文档命令时，JMeter 镜像拉取失败：
+
+```bash
+docker run --rm --network distributed_system_course_ecommerce-net \
+  -v $(pwd)/jmeter:/jmeter alpine/jmeter:latest \
+  -n -t /jmeter/product-detail-test.jmx -l /jmeter/results/product-detail.jtl
+```
+
+报错：
+
+```text
+Error response from daemon: Get "https://registry-1.docker.io/v2/":
+dial tcp: lookup registry-1.docker.io on 0.250.250.200:53:
+read udp 192.168.139.2:xxxxx->0.250.250.200:53: i/o timeout
+```
+
+### 根因
+
+根因不是 JMeter 测试脚本，而是 **OrbStack 的 VM 网络代理模式被覆盖为 `none`**，导致 Docker daemon 在 VM 内发起 DNS 查询时超时。
+
+关键证据：
+
+- `~/.orbstack/log/vmgr.log` 出现：
+  - `using proxy: socks ...`
+  - `using proxy: none (override)`
+  - 持续 `DNS query failed`（`docker.m.daocloud.io`、`registry-1.docker.io`）
+- 当前 shell 设置 `http_proxy/https_proxy` 不能修复 `docker pull`，因为镜像拉取发生在 daemon 侧（OrbStack VM 内），不是当前终端进程。
+
+### 修复
+
+执行：
+
+```bash
+orbctl config set network_proxy auto
+```
+
+校验：
+
+```bash
+orbctl config show
+# 应包含：network_proxy: auto
+```
+
+### 修复后验证（fresh evidence）
+
+1. 镜像拉取验证：
+
+```bash
+docker pull alpine/jmeter:latest
+# Status: Image is up to date for alpine/jmeter:latest
+```
+
+2. 文档中的 JMeter 测试命令验证：
+
+```bash
+docker run --rm --network distributed_system_course_ecommerce-net \
+  -v $(pwd)/jmeter:/jmeter alpine/jmeter:latest \
+  -n -t /jmeter/product-detail-test.jmx -l /jmeter/results/product-detail.jtl
+
+docker run --rm --network distributed_system_course_ecommerce-net \
+  -v $(pwd)/jmeter:/jmeter alpine/jmeter:latest \
+  -n -t /jmeter/static-file-test.jmx -l /jmeter/results/static-file.jtl
+```
+
+两次运行均为 `Err: 0 (0.00%)`。
+
+3. 结果文件检查（2026-04-11 当次运行累积结果）：
+
+- `jmeter/results/product-detail.jtl`: total=375, errors=0
+- `jmeter/results/static-file.jtl`: total=1800, errors=0
+
+### 建议
+
+若后续再次出现 Docker Hub 解析超时，优先检查：
+
+1. `orbctl config show` 中 `network_proxy` 是否为 `auto`
+2. `~/.orbstack/log/vmgr.log` 是否出现 `using proxy: none (override)` 与 `DNS query failed`
